@@ -1,10 +1,11 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 import os
+import sys
 import argparse
 import itertools
 import tempfile
@@ -29,21 +30,26 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("pathA", type=Path)
     parser.add_argument("pathB", type=Path)
     parser.add_argument("--vim", help="vim command to run", default="vim")
+    parser.add_argument("--exclude", help="folders to exclude (e.g. .git)", default=None)
     parser.add_argument(
         "--onlydiffs", help="only open files where there is a diff", action="store_true"
+    )
+    parser.add_argument(
+        "--dry", help="only print the vim script to execute", action="store_true"
     )
     return parser.parse_args()
 
 
-def get_dir_info(dirpath: Path | None) -> tuple[list[Path], list[Path]]:
+def get_dir_info(dirpath: Path | None, exclude: list[str]) -> tuple[list[Path], list[Path]]:
     if not dirpath:
         return [], []
     dirs, files = [], []
     for p in dirpath.iterdir():
-        if p.is_dir():
-            dirs.append(p)
-        else:
-            files.append(p)
+        if p.name not in exclude:
+            if p.is_dir():
+                dirs.append(p)
+            else:
+                files.append(p)
     return dirs, files
 
 
@@ -66,16 +72,23 @@ def get_pairs(aPaths: list[Path],
 
 def get_file_pairs(
         a: Path | None,
-        b: Path | None) -> Iterator[tuple[Path | None, Path | None]]:
-    aDirs, aFiles = get_dir_info(a)
-    bDirs, bFiles = get_dir_info(b)
+        b: Path | None,
+        exclude: list[str]) -> Iterator[tuple[Path | None, Path | None]]:
+    aDirs, aFiles = get_dir_info(a, exclude)
+    bDirs, bFiles = get_dir_info(b, exclude)
     yield from get_pairs(aFiles, bFiles)
     for aDir, bDir in get_pairs(aDirs, bDirs):
-        yield from get_file_pairs(aDir, bDir)
+        yield from get_file_pairs(aDir, bDir, exclude)
 
 
 def main() -> None:
     args = parse_args()
+
+    excludeList = []
+    if args.exclude:
+        for p in args.exclude.split(','):
+            excludeList.append(p)
+
     vimCmdFile = tempfile.NamedTemporaryFile(mode='w', delete=False)
     with vimCmdFile:
         cmds = f"""
@@ -83,9 +96,9 @@ def main() -> None:
         set splitright
         """
         print(cmds, file=vimCmdFile)
-        for a, b in get_file_pairs(args.pathA, args.pathB):
-            aPath = a.resolve() if a else os.devnull
-            bPath = b.resolve() if b else os.devnull
+        for a, b in get_file_pairs(args.pathA, args.pathB, excludeList):
+            aPath = a.resolve() if a else args.pathA.joinpath(b.relative_to(args.pathB)).resolve() # os.devnull
+            bPath = b.resolve() if b else args.pathB.joinpath(a.relative_to(args.pathA)).resolve() # os.devnull
             if (
                 args.onlydiffs
                 and a and b
@@ -101,8 +114,14 @@ def main() -> None:
         tabfirst | tabclose
         call delete("{vimCmdFile.name}")
         """
+
         print(cmds, file=vimCmdFile)
-    subprocess.run(shlex.split(args.vim) + ["-S", vimCmdFile.name])
+    if not args.dry:
+        subprocess.run(shlex.split(args.vim) + ["-S", vimCmdFile.name])
+    else:
+        with open(vimCmdFile.name) as f:
+            for l in f:
+                print(l)
 
 
 if __name__ == '__main__':
