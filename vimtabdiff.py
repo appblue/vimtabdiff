@@ -121,7 +121,7 @@ def main() -> None:
     else:
         with open(vimCmdFile.name) as f:
             for l in f:
-                print(l)
+                print(l.rstrip())
 
 
 if __name__ == '__main__':
