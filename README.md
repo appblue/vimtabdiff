@@ -33,9 +33,11 @@ positional arguments:
   pathB
 
 options:
-  -h, --help  show this help message and exit
-  --vim VIM   vim command to run
-  --onlydiffs  only open files where there is a diff
+  -h, --help                        show this help message and exit
+  --vim VIM                         vim command to run
+  --exclude path_glob1,path_glob2   comma separated list of files/folders to exclude
+  --git                             shortcut to add glob '**/.git' to exclusion list
+  --onlydiffs                       only open files where there is a diff
 ```
 
 ## Relevant vim tips

@@ -30,10 +30,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("pathA", type=Path)
     parser.add_argument("pathB", type=Path)
     parser.add_argument("--vim", help="vim command to run", default="vim")
-    parser.add_argument("--exclude", help="folders to exclude (e.g. .git)", default=None)
-    parser.add_argument(
-        "--onlydiffs", help="only open files where there is a diff", action="store_true"
-    )
+    parser.add_argument("--exclude", help="comma separated list of files/folders to exclude (e.g. .git)", default=None)
+    parser.add_argument("--git", help="add **/.git to exclusion list", action="store_true")
+    parser.add_argument("--onlydiffs", help="only open files where there is a diff", action="store_true")
     parser.add_argument(
         "--dry", help="only print the vim script to execute", action="store_true"
     )
@@ -45,7 +44,7 @@ def get_dir_info(dirpath: Path | None, exclude: list[str]) -> tuple[list[Path], 
         return [], []
     dirs, files = [], []
     for p in dirpath.iterdir():
-        if p.name not in exclude:
+        if any( (p.full_match(e) for e in exclude) ):
             if p.is_dir():
                 dirs.append(p)
             else:
@@ -85,6 +84,9 @@ def main() -> None:
     args = parse_args()
 
     excludeList = []
+    if args.git:
+        excludeList.append('**/.git')
+
     if args.exclude:
         for p in args.exclude.split(','):
             excludeList.append(p)
