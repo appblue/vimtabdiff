@@ -44,7 +44,7 @@ def get_dir_info(dirpath: Path | None, exclude: list[str]) -> tuple[list[Path], 
         return [], []
     dirs, files = [], []
     for p in dirpath.iterdir():
-        if any( (p.full_match(e) for e in exclude) ):
+        if not any( (p.full_match(e) for e in exclude) ):
             if p.is_dir():
                 dirs.append(p)
             else:
