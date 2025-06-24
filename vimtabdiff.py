@@ -31,6 +31,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("pathB", type=Path)
     parser.add_argument("--vim", help="vim command to run", default="vim")
     parser.add_argument("--exclude", help="comma separated list of files/folders to exclude (e.g. .git)", default=None)
+    parser.add_argument("--match", help="comma separated list of strings to limit the scope to only paths containing one of the strings  (e.g. 'components,http')", default=None)
     parser.add_argument("--git", help="add **/.git to exclusion list", action="store_true")
     parser.add_argument("--onlydiffs", help="only open files where there is a diff", action="store_true")
     parser.add_argument(
@@ -91,7 +92,12 @@ def main() -> None:
         for p in args.exclude.split(','):
             excludeList.append(p)
 
+    matchList = []
+    if args.match:
+        matchList = args.match.split(',')
+
     vimCmdFile = tempfile.NamedTemporaryFile(mode='w', delete=False)
+    haveFiles = False
     with vimCmdFile:
         cmds = f"""
         let s:spr = &splitright
@@ -107,7 +113,10 @@ def main() -> None:
                 and open(aPath, mode="rb").read() == open(bPath, mode="rb").read()
             ):
                 continue
+            if matchList and not any(((m.lower() in str(aPath).lower()) or (m.lower() in str(bPath).lower()) for m in matchList)):
+                continue
             print(f"tabedit {aPath} | vsp {bPath}", file=vimCmdFile)
+            haveFiles = True
         cmds = f"""
         let &splitright = s:spr
         tabdo windo :1
@@ -118,12 +127,15 @@ def main() -> None:
         """
 
         print(cmds, file=vimCmdFile)
-    if not args.dry:
-        subprocess.run(shlex.split(args.vim) + ["-S", vimCmdFile.name])
+    if haveFiles:
+        if not args.dry:
+            subprocess.run(shlex.split(args.vim) + ["-S", vimCmdFile.name])
+        else:
+            with open(vimCmdFile.name) as f:
+                for l in f:
+                    print(l.rstrip())
     else:
-        with open(vimCmdFile.name) as f:
-            for l in f:
-                print(l.rstrip())
+        print(f"no files for comparision selected")
 
 
 if __name__ == '__main__':
