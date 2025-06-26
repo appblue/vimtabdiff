@@ -11,6 +11,7 @@ import itertools
 import tempfile
 import subprocess
 import shlex
+import re
 from pathlib import Path
 from typing import TypeVar
 from collections.abc import Iterator, Callable
@@ -31,12 +32,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("pathB", type=Path)
     parser.add_argument("--vim", help="vim command to run", default="vim")
     parser.add_argument("--exclude", help="comma separated list of files/folders to exclude (e.g. .git)", default=None)
-    parser.add_argument("--match", help="comma separated list of strings to limit the scope to only paths containing one of the strings  (e.g. 'components,http')", default=None)
+    parser.add_argument("--match", help="comma separated list of regular expressions to limit the scope to only paths matching one of the expressions (e.g. 'components.*,http')", default=None)
     parser.add_argument("--git", help="add **/.git to exclusion list", action="store_true")
     parser.add_argument("--onlydiffs", help="only open files where there is a diff", action="store_true")
-    parser.add_argument(
-        "--dry", help="only print the vim script to execute", action="store_true"
-    )
     return parser.parse_args()
 
 
@@ -113,7 +111,7 @@ def main() -> None:
                 and open(aPath, mode="rb").read() == open(bPath, mode="rb").read()
             ):
                 continue
-            if matchList and not any(((m.lower() in str(aPath).lower()) or (m.lower() in str(bPath).lower()) for m in matchList)):
+            if matchList and not any(((re.search(m, str(aPath), re.IGNORECASE)) or (re.search(m, str(bPath), re.IGNORECASE)) for m in matchList)):
                 continue
             print(f"tabedit {aPath} | vsp {bPath}", file=vimCmdFile)
             haveFiles = True
@@ -128,12 +126,7 @@ def main() -> None:
 
         print(cmds, file=vimCmdFile)
     if haveFiles:
-        if not args.dry:
-            subprocess.run(shlex.split(args.vim) + ["-S", vimCmdFile.name])
-        else:
-            with open(vimCmdFile.name) as f:
-                for l in f:
-                    print(l.rstrip())
+        subprocess.run(shlex.split(args.vim) + ["-S", vimCmdFile.name])
     else:
         print(f"no files for comparision selected")
 

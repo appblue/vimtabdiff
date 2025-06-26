@@ -36,9 +36,31 @@ options:
   -h, --help                        show this help message and exit
   --vim VIM                         vim command to run
   --exclude path_glob1,path_glob2   comma separated list of files/folders to exclude
+  --match regex1,regex2             comma separated list of regular expressions to limit the scope to only paths matching one of the expressions (e.g. 'components.*,http')
   --git                             shortcut to add glob '**/.git' to exclusion list
   --onlydiffs                       only open files where there is a diff
 ```
+
+# Usage example
+
+```bash
+    # Show diff of files in two directories
+    vimtabdiff.py path/to/dirA path/to/dirB
+
+    # Show diff of files in two directories, excluding folder matching '**/.git' fileglob
+    vimtabdiff.py --git path/to/dirA path/to/dirB
+
+    # Show diff of files in two directories, excluding .git folder and *.pyc files in top level directories
+    vimtabdiff.py --exclude '**/.git,*.pyc' path/to/dirA path/to/dirB
+
+    # Show diff of files in two directories, only showing files with diffs
+    vimtabdiff.py --onlydiffs path/to/dirA path/to/dirB
+
+    # Show diff of files in two directories, only showing files with full paths matching any of the regexes
+    vimtabdiff.py --match 'components.*,http' path/to/dirA path/to/dirB
+```
+
+The `--match` option is useful when you want to limit the scope of the diff to only certain files or directories. For example, if you have a large project and you only want to see changes in the `components` directory or files that contain `http`, you can use this option. It's applied to the full path of the files, so you can use it to match directories as well, after applying the `--exclude` option.
 
 ## Relevant vim tips
 
